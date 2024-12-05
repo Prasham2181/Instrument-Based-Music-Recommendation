@@ -4,6 +4,7 @@ RawData
 Final_Dataset
 Audio_Dataset
 Spectrogram_Dataset
+*.pt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
