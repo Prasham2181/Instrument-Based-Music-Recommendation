@@ -6,6 +6,8 @@ Audio_Dataset
 Spectrogram_Dataset
 *.pt
 *.zip
+*.wav
+*.pth
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
