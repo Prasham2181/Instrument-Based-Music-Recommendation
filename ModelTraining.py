@@ -67,7 +67,7 @@ class UNetDataset(Dataset):
 
 # Unet model
 class UNET(nn.Module):
-
+ 
     def __init__(self, in_channels, out_channels):
         super().__init__()
 
@@ -145,7 +145,6 @@ class UNET(nn.Module):
 
     def upsampling_block(self, in_channels, out_channels):
         return nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
-
 
 class EnergyBasedLossFunction(nn.Module):
     def __init__(self):
@@ -288,7 +287,7 @@ def separate_sources(mixed_audio_waveform, softmask, n_fft=1022, hop_length=512,
         waveform = np.clip(waveform, -1.0, 1.0)  # Normalize to [-1, 1]
         waveform = waveform.astype(np.float32)  # Convert to float32
         
-        # Define sample rate (assuming it's 10880)
+        # Define sample rate (assuming it's 92160)
         sr = 10880
         
         # Ensure the 'Outputs' directory exists

@@ -25,7 +25,7 @@ def replace_other_track_labels(df, four_instr):
     raise e
   
 # Making the length of every audio equal to 180 seconds
-def make_lengths_same(audio_file, sample_rate, target_duration=180):
+def make_lengths_same(audio_file, sample_rate=10880, target_duration=180):
     try:
         # Finding the length of input audio
         audio_length = len(audio_file)
@@ -96,7 +96,7 @@ def merge_main_four_tracks(unique_track):
     
     # Merging the piano records if required
     y_piano, sr_piano = merge_tracks(track_df, 'Piano')
-    if y_piano is not None and sr_piano is not None:
+    if y_piano is not None and sr_piano is not None :
       y_piano = y_piano.reshape(-1, 1) # reshaping because soundfile expects the shape of (audio_samples, num_channels)
     
     # Merging guitar records if required
@@ -165,14 +165,15 @@ def create_audio_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'G
 
           # Saving the mixed audio
           y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.wav'), mono=True, sr=10880)
-
+          y_mix = make_lengths_same(y_mix, sr_mix)
+          
           if y_mix is not None and sr_mix is not None:
             sf.write(os.path.join('Audio_Dataset', 'Input', f'{unique_track}_mix.wav'), y_mix, sr_mix)
 
   except Exception as e:
     print("Error encountered in the 'create_dataset' function.")
     
-def resample_spectrogram_db(spectrogram, target_shape=(256, 256)):
+def resample_spectrogram_db(spectrogram, target_shape=(512, 512)):
     return ndimage.zoom(spectrogram, (target_shape[0] / spectrogram.shape[0], target_shape[1] / spectrogram.shape[1]), order=3)
   
 def resample_spectrogram_phase(phase, target_shape=(512, 512)):
@@ -205,8 +206,6 @@ def create_log_magnitude_spectrogram(waveform, window_length=1022, hop_length=51
     # torch.save(phase, os.path.join('Magnitude_Phase_Info', 'Mixture_phase.pt'))
 
     # Convert magnitude to decibels (log-compressed)
-    print(f"stft shape: {stft_results.shape}")
-    print(f"magnitude shape: {magnitude.shape}")
     magnitude_db = 20 * torch.log10(magnitude + 1e-6)
 
     # Normalize the magnitude spectrogram to range [0, 255] for grayscale
@@ -214,7 +213,6 @@ def create_log_magnitude_spectrogram(waveform, window_length=1022, hop_length=51
     magnitude_db_normalized = magnitude_db_normalized.squeeze().cpu().numpy().astype(np.uint8)
     
     magnitude_db_normalized = resample_spectrogram_db(magnitude_db_normalized, target_shape=(513, 513))
-    print(f"magnitude shape after: {magnitude_db_normalized.shape}")
     return magnitude_db_normalized
 
 def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar', 'Others']):
