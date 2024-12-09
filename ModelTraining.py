@@ -214,6 +214,8 @@ def test(dataloader, model, loss_fn, optimizer):
     )
 
 def predict_source_masks(model, spectrogram_image_path):
+    
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
     # Loading the image
     img = Image.open(spectrogram_image_path).convert('L')
     
@@ -349,11 +351,11 @@ if __name__ == "__main__":
     
     torch.save(model.state_dict(), os.path.join('Models', 'model_weights.pth'))
     
-    # Source separation
-    softmasks = predict_source_masks(model, os.path.join('Final_Dataset', 'Input', 'Track00001_mix.png'))
-    y, sr = librosa.load(os.path.join('RawData', 'Track00005', 'mix.wav'), mono=True, sr=10880)
-    y = make_lengths_same(y, sr)
-    separated_sources = separate_sources(torch.tensor(y, dtype=torch.float32), softmasks)
+    # # Source separation
+    # softmasks = predict_source_masks(model, os.path.join('Final_Dataset', 'Input', 'Track00001_mix.png'))
+    # y, sr = librosa.load(os.path.join('RawData', 'Track00005', 'mix.wav'), mono=True, sr=10880)
+    # y = make_lengths_same(y, sr)
+    # separated_sources = separate_sources(torch.tensor(y, dtype=torch.float32), softmasks)
     
     
     

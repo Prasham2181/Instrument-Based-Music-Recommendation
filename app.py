@@ -7,6 +7,9 @@ from ModelTraining import predict_source_masks, separate_sources, make_lengths_s
 from DatasetLoading import create_log_magnitude_spectrogram
 import torch
 import matplotlib.pyplot as plt
+from ModelTraining import UNET
+
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
 
 def get_instrument_duration(file_path):
@@ -21,14 +24,16 @@ def get_instrument_duration(file_path):
   duration = np.sum([(end - start) / sr for start, end in intervals])
 
   # Total duration of an audio
-  total_duration = librosa.get_duration(y, sr)  
+  total_duration = librosa.get_duration(y=y, sr=sr)  
   
   return duration/total_duration
 
 def calculate_instrument_durations(song_file_path=os.path.join('user_ip_wavfile_folder', 'wavfile.wav')):
     
     # Loading the trained model
-    model = torch.load(os.path.join('Models', 'model_weights.pth'))
+    model = UNET(1, 5)
+    state_dict = torch.load(os.path.join('Models', 'model_weights.pth'))
+    model.load_state_dict(state_dict)
     
     # Finding the wavform and sample rate
     y, sr = librosa.load(song_file_path, mono=True, sr=10880)
@@ -37,6 +42,9 @@ def calculate_instrument_durations(song_file_path=os.path.join('user_ip_wavfile_
     y = make_lengths_same(y, sr)
     
     user_ip_spectrogram = create_log_magnitude_spectrogram(y, window_length=1022, hop_length=512, sample_rate=10880)
+    
+    if not os.path.exists('User_ip_spectrogram'):
+        os.makedirs('User_ip_spectrogram')
     
     fig = plt.figure(figsize=(7,7))
     cax = plt.imshow(user_ip_spectrogram, aspect='auto', origin='lower', interpolation=None,  cmap='viridis')
@@ -62,7 +70,7 @@ def calculate_instrument_durations(song_file_path=os.path.join('user_ip_wavfile_
         
     return durations  # Guitar, Drums, Piano, Bass, Others
 
-def calculate_db_durations(test_folder='Database', instruments= ['Bass', 'Drums', 'Guitar', 'Piano', 'Others'], output_file_path='db_duration_matrix.npy'):
+def calculate_db_durations(test_folder=os.path.join('Database', 'Output'), instruments= ['Bass', 'Drums', 'Guitar', 'Piano', 'Others'], output_file_path='db_duration_matrix.npy'):
     # Initialize the matrix
     duration_matrix = []
     
@@ -95,32 +103,33 @@ def calculate_db_durations(test_folder='Database', instruments= ['Bass', 'Drums'
 def generate_recommendations():
     
     instrument_durations = calculate_instrument_durations()
+    print(f"**********instrument duration: {instrument_durations}")
     db_durations = np.load('db_duration_matrix.npy')
-    
+    print(f"**********db duration: {db_durations}")
     cosine_similarity = calculate_similarity_score(instrument_durations, db_durations)
     
     max_index = np.argmax(cosine_similarity)
-    song_options = sorted(os.listdir('Database'))
+    song_options = sorted(os.listdir(os.path.join('Database', 'Input')))
     
     recommendations_file_name = song_options[max_index]
     
     return recommendations_file_name
 
-def calculate_similarity_score(instrument_durations, db_durations, user_preference):
+def calculate_similarity_score(instrument_durations, db_durations):
     
     # Using similarity score formula
-    instrument_durations = instrument_durations.reshape(-1, 1)
+    instrument_durations = np.array(instrument_durations).reshape(-1, 1)
     
     # magnitudes of two array
     instrument_durations_magnitude = np.linalg.norm(instrument_durations)
     db_durations_magnitude = np.linalg.norm(db_durations, axis=0)
     
-    cosine_similarity = np.dot(instrument_durations * db_durations) / (instrument_durations_magnitude * db_durations_magnitude)
-    
+    cosine_similarity = np.dot(db_durations, instrument_durations) / (instrument_durations_magnitude * db_durations_magnitude)
+    print(f"********cosine similarity: {cosine_similarity}")
     return cosine_similarity
     
     
-# Streamlit UI Part
+# # Streamlit UI Part
     
 st.title("CS 541 Deep Learning Final Project")
 
@@ -138,13 +147,13 @@ if uploaded_file:
         temp_file.write(uploaded_file.getbuffer())
         temp_file_path = temp_file.name
         
-    if os.path.exists('user_ip_wavfile_folder'):
+    if not os.path.exists('user_ip_wavfile_folder'):
         os.makedirs('user_ip_wavfile_folder')
         
     file_path = os.path.join('user_ip_wavfile_folder', 'wavfile.wav')
     
     with open(file_path, 'wb') as f:
-        f.write(uploaded_file.get_buffer())
+        f.write(uploaded_file.getbuffer())
     
     st.audio(temp_file_path)
 
@@ -166,11 +175,12 @@ if uploaded_file:
 
     if st.button("Submit"):
         recommendations = generate_recommendations()
+        print(f"******************Recommendations: {recommendations}")
         if recommendations:
             st.success("Preferences submitted successfully! Here is your recommendation:")
             # for rec in recommendations:
             #     st.write(f"- {rec}")
-            st.write(recommendations)
+            st.audio(os.path.join('Database', 'Input', f"{recommendations}"))
         else:
             st.warning("No recommendations available based on your preferences. Try adjusting your inputs.")
 
@@ -180,3 +190,5 @@ if uploaded_file:
         st.error(f"Error cleaning up the file: {e}")
 else:
     st.info("Please upload a song to proceed.")
+
+

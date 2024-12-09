@@ -337,7 +337,7 @@ def create_mask_dataset():
             plt.close(fig)
   
 if __name__ == "__main__":
-  
+    
   # Reading the file
   df = pd.read_csv('slakh2100_metadata.csv')
   
