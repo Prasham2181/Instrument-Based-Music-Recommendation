@@ -8,6 +8,12 @@ Spectrogram_Dataset
 *.zip
 *.wav
 *.pth
+User_ip_spectrogram
+user_ip_wavfile_folder
+RawData
+RawData2
+Outputs
+DataBase
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
