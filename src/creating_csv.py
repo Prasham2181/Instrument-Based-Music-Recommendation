@@ -34,7 +34,7 @@ def extract_slakh_metadata(root_dir, output_csv):
                         with open(yaml_file_path, 'r') as file:
                             try:
                                 data = yaml.safe_load(file)
-
+                                
                                 # Extract folder name and UUID
                                 uuid = data.get('UUID', 'Unknown')
                                 stems = data.get('stems', {})
@@ -44,7 +44,7 @@ def extract_slakh_metadata(root_dir, output_csv):
                                     writer.writerow([
                                         folder,  # Folder name
                                         uuid,  # UUID
-                                        track_name + ".wav",  # Track name (e.g., S00, S01)
+                                        track_name + ".flac",  # Track name (e.g., S00, S01)
                                         track_info.get('inst_class', 'Unknown'),  # Instrument class
                                         track_info.get('midi_program_name', 'Unknown'),  # MIDI program name
                                         track_info.get('integrated_loudness', 'Unknown'),  # Integrated loudness

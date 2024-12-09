@@ -164,7 +164,7 @@ def create_audio_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'G
             sf.write(os.path.join('Audio_Dataset', 'Output' , str(unique_track), 'Others.wav'), y_others, sr_others)
 
           # Saving the mixed audio
-          y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.wav'), mono=True, sr=10880)
+          y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.flac'), mono=True, sr=10880)
           y_mix = make_lengths_same(y_mix, sr_mix)
           
           if y_mix is not None and sr_mix is not None:
@@ -247,7 +247,7 @@ def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bas
                     if not os.path.exists(os.path.join('Spectrogram_Dataset', 'Output', str(unique_track))):
                         os.makedirs(os.path.join('Spectrogram_Dataset', 'Output' ,str(unique_track)))
 
-                    y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.wav'), mono=True, sr=10880)
+                    y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.flac'), mono=True, sr=10880)
 
                     # Defining the parameters for the mel spectrogram
                     window_length = 1022

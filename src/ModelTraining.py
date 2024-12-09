@@ -189,7 +189,7 @@ def train(dataloader, model, loss_fn, optimizer):
         loss.backward()
         optimizer.step()
 
-        if batch % 32 == 0:
+        if batch % 5 == 0:
             loss, current = loss.item(), batch * len(X)
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
@@ -323,7 +323,7 @@ if __name__ == "__main__":
     dataset = UNetDataset(input_dir, output_dir, transform=transform)
 
     # DataLoader for batching and shuffling
-    dataloader = DataLoader(dataset, batch_size=4, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
     
     # Checking input and output shapes
     for inputs, outputs in dataloader:
