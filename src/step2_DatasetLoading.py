@@ -3,22 +3,21 @@
 import librosa
 import numpy as np
 import pandas as pd
-import IPython.display as ipd
 import soundfile as sf
 import os
-import torch, torchaudio
+import torch
 import matplotlib.pyplot as plt
-import re
-import cv2
-import zipfile
 from PIL import Image
 import shutil
 import scipy.ndimage as ndimage
+import logging
+from step0_utility_functions import Utility
 
 # Replacing all the instruments except in ['Piano', 'Drums', 'Bass', 'Guitar'] with 'Others' tag
 def replace_other_track_labels(df, four_instr):
   try:
     df['Instrument Class'] = np.where(~df['Instrument Class'].isin(four_instr), 'Others', df['Instrument Class'])
+    logger.info("Renamed all the instruments except ['Piano', 'Drums', 'Bass', 'Guitar'] as 'Others. in metadata csv file.")
     return df
   except Exception as e:
     print(f"Error encounterd in function 'replace_other_track_labels'.")
@@ -170,6 +169,8 @@ def create_audio_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'G
           if y_mix is not None and sr_mix is not None:
             sf.write(os.path.join('Audio_Dataset', data, 'Input', f'{unique_track}_mix.wav'), y_mix, sr_mix)
 
+      logger.info('Audio Dataset Created.')
+
   except Exception as e:
     print("Error encountered in the 'create_dataset' function.")
     
@@ -198,13 +199,6 @@ def create_log_magnitude_spectrogram(waveform, window_length=1022, hop_length=51
     magnitude = stft_results.abs()
     phase = torch.angle(stft_results)
 
-    # # Save magnitude and phase
-    # if not os.path.exists('Magnitude_Phase_Info'):
-    #     os.makedirs('Magnitude_Phase_Info')
-
-    # torch.save(magnitude, os.path.join('Magnitude_Phase_Info', 'Mixture_magnitude.pt'))
-    # torch.save(phase, os.path.join('Magnitude_Phase_Info', 'Mixture_phase.pt'))
-
     # Convert magnitude to decibels (log-compressed)
     magnitude_db = 20 * torch.log10(magnitude + 1e-6)
 
@@ -213,6 +207,7 @@ def create_log_magnitude_spectrogram(waveform, window_length=1022, hop_length=51
     magnitude_db_normalized = magnitude_db_normalized.squeeze().cpu().numpy().astype(np.uint8)
     
     magnitude_db_normalized = resample_spectrogram_db(magnitude_db_normalized, target_shape=(513, 513))
+  
     return magnitude_db_normalized
 
 def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar', 'Others'], data='train'):
@@ -289,6 +284,8 @@ def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bas
                             plt.savefig(os.path.join('Spectrogram_Dataset', data, 'Output', str(unique_track), f"{instr_names[index]}.png"))
                             plt.close(fig)
 
+        logger.info('Spectrogram Dataset Created.')                            
+
     except Exception as e:
         print("Error encountered in the function 'create_spectrogram_dataset'.")
         raise e
@@ -335,9 +332,30 @@ def create_mask_dataset(data='train'):
             plt.imshow(softmask, cmap='gray', origin='lower', aspect='auto')
             plt.savefig(os.path.join('Final_Dataset', data, 'Output', output_dir, source_images[index]), bbox_inches='tight', transparent=True)
             plt.close(fig)
-  
+
+    logger.info('Output Mask Created.')
+      
 if __name__ == "__main__":
 
+  # SETTING UP THE LOGGING MECHANISM
+  logger = logging.getLogger(__name__)
+  logger.setLevel(logging.INFO)
+
+  Utility().create_folder('Logs')
+  params = Utility().read_params()
+
+  main_log_folderpath = params['Logs']['Logs_Folder']
+  data_restructuring_processing_logfile_path = params['Logs']['Make_Predictions']
+
+  file_handler = logging.FileHandler(os.path.join(
+      main_log_folderpath, data_restructuring_processing_logfile_path))
+  formatter = logging.Formatter(
+      '%(asctime)s : %(levelname)s : %(filename)s : %(message)s')
+
+  file_handler.setFormatter(formatter)
+  logger.addHandler(file_handler)
+
+  # STARTING THE EXECUTION OF FUNCTIONS
   # Type of data
   data = 'test'
     

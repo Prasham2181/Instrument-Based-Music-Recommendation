@@ -1,6 +1,8 @@
 import os
 import yaml
 import csv
+import logging
+from step0_utility_functions import Utility
 
 
 def extract_slakh_metadata(root_dir, output_csv):
@@ -12,10 +14,10 @@ def extract_slakh_metadata(root_dir, output_csv):
     output_csv (str): Path to the output CSV file.
     """
     try:
+        logger.info('Creating a csv file to store metadata in structured format.')
         # Open the CSV file for writing
         with open(output_csv, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
-
             # Write header row
             writer.writerow([
                 'Folder Name', 'UUID', 'Track Name', 'Instrument Class',
@@ -52,15 +54,38 @@ def extract_slakh_metadata(root_dir, output_csv):
                                         track_info.get('plugin_name', 'Unknown'),  # Plugin name
                                         track_info.get('program_num', 'Unknown')  # Program number
                                     ])
+                                logger.info('Metadata fetched from multiple metadata yaml files and stored in one csv file.')
+
                             except yaml.YAMLError as e:
                                 print(f"Error reading YAML file: {yaml_file_path}, Error: {e}")
-        print(f"Data successfully written to {output_csv}")
+                                raise e
+                            
     except Exception as e:
         print(f"Error: {e}")
 
 
 # Example usage
 if __name__ == "__main__":
+
+    # SETTING UP THE LOGGING MECHANISM
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    Utility().create_folder('Logs')
+    params = Utility().read_params()
+
+    main_log_folderpath = params['Logs']['Logs_Folder']
+    data_restructuring_processing_logfile_path = params['Logs']['Data_Restructuring_Processing']
+
+    file_handler = logging.FileHandler(os.path.join(
+        main_log_folderpath, data_restructuring_processing_logfile_path))
+    formatter = logging.Formatter(
+        '%(asctime)s : %(levelname)s : %(filename)s : %(message)s')
+
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+
+    # STARTING THE EXECUTION OF FUNCTIONS
 
     # Type of data
     data = 'test'

@@ -3,12 +3,13 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
-import librosa
 import soundfile as sf
 import os
+import logging
+import json
+from step0_utility_functions import Utility
 import numpy as np
-import scipy.ndimage as ndimage
-from DatasetLoading import resample_spectrogram_db, resample_spectrogram_phase, make_lengths_same
+from step2_DatasetLoading import resample_spectrogram_db, resample_spectrogram_phase, make_lengths_same
 
 
 # Dataset class
@@ -205,10 +206,19 @@ def test(dataloader, model, loss_fn):
             X, y = X.to(device), y.to(device)
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
-            correct_preds += (pred.argmax(1) == y).type(torch.float).sum().item()
 
         test_loss /= num_batches
         correct_preds /= size
+
+    metrics_folder_name = params['Model']['Metrics']['Metrics_Folder']
+    metrics_file_name = params['Model']['Metrics']['Metrics_File']
+
+    Utility.create_folder(metrics_folder_name)
+
+    with open(os.path.join(metrics_folder_name, metrics_file_name), 'w') as json_file:
+                    metrics = dict()
+                    metrics['weighted_MSE'] = test_loss
+                    json.dump(metrics, json_file, indent=4)
 
     print(f"Error: \n Accuracy: {correct_preds*100:>7f}%, Avg MSE loss: {test_loss:>8f}")
 
@@ -305,7 +315,26 @@ def separate_sources(mixed_audio_waveform, softmask, n_fft=1022, hop_length=512,
     return separated_sources
 
 if __name__ == "__main__":
+
+    # SETTING UP THE LOGGING MECHANISM
+    logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    Utility().create_folder('Logs')
+    params = Utility().read_params()
+
+    main_log_folderpath = params['Logs']['Logs_Folder']
+    Make_Predictions = params['Logs']['make_predictions']
+
+    file_handler = logging.FileHandler(os.path.join(
+        main_log_folderpath, Make_Predictions))
+    formatter = logging.Formatter(
+        '%(asctime)s : %(levelname)s : %(filename)s : %(message)s')
+
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
     
+    # STARTING THE EXECUTION OF FUNCTIONS
     # cpu or cuda device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -326,10 +355,14 @@ if __name__ == "__main__":
 
     # DataLoader for batching and shuffling
     dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
+
+    logger.info('Dataset loaded successfully.')
     
     # Initializing the model
     in_channels, out_channels = 1, 5
     model = UNET(in_channels, out_channels).to(device)
+
+    logger.info('Model Initialized.')
     
     # Loss and optimizer for training the model
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01)
@@ -349,13 +382,18 @@ if __name__ == "__main__":
             os.makedirs('Models')
         torch.save(model.state_dict(), os.path.join('Models', 'model_weights.pth'))
 
+        logger.info('Model Trained Successfully')
+
     # Validation
     elif data == 'validation':
         test(dataloader, model, loss_fn)
+        logger.info('Model performance checked on the validation data')
 
     # Test
     elif data == 'test':
         test(dataloader, model, loss_fn)
+        logger.info('Model performance checked on the test data')
+
     
     
     
