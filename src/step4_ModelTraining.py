@@ -9,8 +9,7 @@ import logging
 import json
 from step0_utility_functions import Utility
 import numpy as np
-from step2_DatasetLoading import resample_spectrogram_db, resample_spectrogram_phase, make_lengths_same
-
+ 
 
 # Dataset class
 class UNetDataset(Dataset):
@@ -107,6 +106,9 @@ class UNET(nn.Module):
         )
 
         return conv
+    
+    def upsampling_block(self, in_channels, out_channels):
+        return nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
 
     def forward(self, input):
 
@@ -144,9 +146,7 @@ class UNET(nn.Module):
         output = self.output(decoder1)
         return output
 
-    def upsampling_block(self, in_channels, out_channels):
-        return nn.ConvTranspose2d(in_channels, out_channels, kernel_size=2, stride=2)
-
+# Custom Loss Function: MSE Loss weighted by energy of label spectrograms
 class EnergyBasedLossFunction(nn.Module):
     def __init__(self):
         super().__init__()
@@ -174,145 +174,55 @@ class EnergyBasedLossFunction(nn.Module):
 
         return total_loss
 
-# training
-def train(dataloader, model, loss_fn, optimizer):
-    size = len(dataloader.dataset)
-    model.train()
-    for batch, (X, y) in enumerate(dataloader):
-        X, y = X.to(device), y.to(device)
-
-        # compute prediction error
-        pred = model(X)
-        loss = loss_fn(pred, y)
-
-        # backprop
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        if batch % 5 == 0:
-            loss, current = loss.item(), batch * len(X)
-            print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
-
-# testing
-def test(dataloader, model, loss_fn):
-    size = len(dataloader.dataset)
-    num_batches = len(dataloader)
-
-    model.eval()
-    test_loss, correct_preds = 0, 0
-    with torch.no_grad():
-        for X, y in dataloader:
+# Training and Testing
+class TrainingTesting:
+    # training
+    def train(self, dataloader, model, loss_fn, optimizer):
+        size = len(dataloader.dataset)
+        model.train()
+        for batch, (X, y) in enumerate(dataloader):
             X, y = X.to(device), y.to(device)
+
+            # compute prediction error
             pred = model(X)
-            test_loss += loss_fn(pred, y).item()
+            loss = loss_fn(pred, y)
 
-        test_loss /= num_batches
-        correct_preds /= size
+            # backprop
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    metrics_folder_name = params['Model']['Metrics']['Metrics_Folder']
-    metrics_file_name = params['Model']['Metrics']['Metrics_File']
+            if batch % 5 == 0:
+                loss, current = loss.item(), batch * len(X)
+                print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
-    Utility.create_folder(metrics_folder_name)
+    # testing
+    def test(self, dataloader, model, loss_fn):
+        size = len(dataloader.dataset)
+        num_batches = len(dataloader)
 
-    with open(os.path.join(metrics_folder_name, metrics_file_name), 'w') as json_file:
-                    metrics = dict()
-                    metrics['weighted_MSE'] = test_loss
-                    json.dump(metrics, json_file, indent=4)
+        model.eval()
+        test_loss, correct_preds = 0, 0
+        with torch.no_grad():
+            for X, y in dataloader:
+                X, y = X.to(device), y.to(device)
+                pred = model(X)
+                test_loss += loss_fn(pred, y).item()
 
-    print(f"Error: \n Accuracy: {correct_preds*100:>7f}%, Avg MSE loss: {test_loss:>8f}")
+            test_loss /= num_batches
+            correct_preds /= size
 
-def predict_source_masks(model, spectrogram_image_path):
-    
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    # Loading the image
-    img = Image.open(spectrogram_image_path).convert('L')
-    
-    # Creating a transformation pipeline
-    transform = transforms.Compose([
-    transforms.Resize((512, 512)),  
-    transforms.ToTensor(),  # Convert image to tensor
-    ])
-    
-    # Transforming the input image
-    input_tensor = transform(img)
-    
-    # Adding batch dimension at the first position
-    input_tensor = input_tensor.unsqueeze(0).to(device)
-    
-    # Model in evaluation model
-    model.eval()
-    
-    with torch.no_grad():
-        softmasks = model(input_tensor).detach().numpy()
-    
-    return softmasks
+        metrics_folder_name = params['Model']['Metrics']['Metrics_Folder']
+        metrics_file_name = params['Model']['Metrics']['Metrics_File']
 
-def stft(wavform, n_fft=1022, hop_length=512, window_length=1022):
-    
-    stft_results = torch.stft(wavform, n_fft=1022, hop_length=hop_length, win_length=window_length, window=torch.hann_window(window_length), return_complex=True)
-    
-    # Computing magnitude and phase
-    magnitude = stft_results.abs()
-    phase = torch.angle(stft_results)
+        Utility().create_folder(metrics_folder_name)
 
-    # Convert magnitude to decibels (log-compressed)
-    magnitude_db = 20 * torch.log10(magnitude + 1e-6)
-
-    # Normalize the magnitude spectrogram to range [0, 255] for grayscale
-    magnitude_db_normalized = (magnitude_db - magnitude_db.min()) / (magnitude_db.max() - magnitude_db.min()) * 255
-    magnitude_db_normalized = magnitude_db_normalized.squeeze().cpu().numpy().astype(np.uint8)
-    
-    magnitude_db_normalized = resample_spectrogram_db(magnitude_db_normalized, target_shape=(512, 512))
-    resampled_phase = resample_spectrogram_phase(phase)
-    
-    return magnitude_db_normalized, resampled_phase
-
-def istft(magnitude, phase, n_fft=1022, hop_length=512, window_length=1022):
-    spec = magnitude * torch.exp(1j * torch.tensor(phase))
-    return torch.istft(spec, n_fft=1022, hop_length=hop_length, win_length=window_length)
-
-def separate_sources(mixed_audio_waveform, softmask, n_fft=1022, hop_length=512, window_length=1024):
-    # Finding the magnitude and the phase of the mixed audio waveform
-    mixed_magnitude, mixed_phase = stft(mixed_audio_waveform)
-    
-    # Multiplying the mixed audio waveform magnitude with the source mask
-    masked_magnitude = torch.tensor(softmask) * torch.tensor(mixed_magnitude).unsqueeze(0)
-    
-    separated_sources = list()
-    
-    for index in range(softmask.shape[1]):  # Repeating this operation along the channel dimension
-        source_magnitude = masked_magnitude[:, index, :, :]
-        source_phase = mixed_phase 
-        separate_source = istft(source_magnitude, source_phase)
-        separated_sources.append(separate_source)
-    
-    # Save each separated source to a .wav file
-    for i in range(len(separated_sources)):
-        waveform = separated_sources[i]
-        print(waveform.shape)
-        waveform = waveform.cpu().numpy()  # Convert to numpy array
+        with open(os.path.join(metrics_folder_name, metrics_file_name), 'w') as json_file:
+                        metrics = dict()
+                        metrics['weighted_MSE'] = test_loss
+                        json.dump(metrics, json_file, indent=4)
         
-        # Normalize waveform to the range [-1, 1] for 16-bit PCM audio
-        waveform = waveform.reshape(-1)  # Flatten to 1D if it's 1D already (samples,)
-        waveform = np.clip(waveform, -1.0, 1.0)  # Normalize to [-1, 1]
-        waveform = waveform.astype(np.float32)  # Convert to float32
-        
-        # Define sample rate (assuming it's 92160)
-        sr = 10880
-        
-        # Ensure the 'Outputs' directory exists
-        if not os.path.exists('Outputs'):
-            os.makedirs('Outputs')
-        
-        instruments = ['Bass', 'Drums', 'Guitar', 'Piano', 'Others']
-        
-        # Save the waveform to a .wav file
-        output_file = os.path.join('Outputs', f"waveform_{instruments[i]}.wav")  # Ensure .wav extension
-        sf.write(output_file, waveform, sr)
-        print(f"Saved waveform {i+1} to {output_file}")
-        
-    return separated_sources
+        print(f"Avg MSE loss: {test_loss:>8f}")
 
 if __name__ == "__main__":
 
@@ -324,7 +234,7 @@ if __name__ == "__main__":
     params = Utility().read_params()
 
     main_log_folderpath = params['Logs']['Logs_Folder']
-    Make_Predictions = params['Logs']['make_predictions']
+    Make_Predictions = params['Logs']['Make_Predictions']
 
     file_handler = logging.FileHandler(os.path.join(
         main_log_folderpath, Make_Predictions))
@@ -339,7 +249,7 @@ if __name__ == "__main__":
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     # Type of data
-    data = 'test'
+    data = 'train'
     
     # Paths and dimensions
     input_dir = os.path.join('Final_Dataset', data, 'Input')
@@ -369,13 +279,14 @@ if __name__ == "__main__":
     loss_fn = EnergyBasedLossFunction()
     
     # Epochs
-    epochs = 15
+    epochs = 1
 
     # Train
     if data == 'train':
         for epoch in range(epochs):
             print(f"Epoch {epoch + 1}\n-------------------------")
-            train(dataloader, model, loss_fn, optimizer)
+            tt = TrainingTesting()
+            tt.train(dataloader, model, loss_fn, optimizer)
 
         # Saving the trained model
         if not os.path.exists('Models'):
@@ -386,13 +297,18 @@ if __name__ == "__main__":
 
     # Validation
     elif data == 'validation':
-        test(dataloader, model, loss_fn)
-        logger.info('Model performance checked on the validation data')
+        logger.info('Checking trained model performance on validation data.')
+        tt = TrainingTesting()
+        tt.test(dataloader, model, loss_fn)
+        logger.info('Model performance checked on the validation data.')
 
     # Test
     elif data == 'test':
-        test(dataloader, model, loss_fn)
+        logger.info('Making predictions using trained model on test data')
+        tt = TrainingTesting()
+        tt.test(dataloader, model, loss_fn)
         logger.info('Model performance checked on the test data')
+
 
     
     
