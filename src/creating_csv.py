@@ -61,11 +61,15 @@ def extract_slakh_metadata(root_dir, output_csv):
 
 # Example usage
 if __name__ == "__main__":
+
+    # Type of data
+    data = 'test'
+
     # Root directory of Slakh2100 dataset
-    slakh_root_dir = 'RawData'
+    slakh_root_dir = os.path.join('Slakh2100', data)
 
     # Output CSV file path
-    output_csv_path = 'slakh2100_metadata.csv'
+    output_csv_path = f'slakh2100_metadata_{data}.csv'
 
     # Extract metadata and write to CSV
     extract_slakh_metadata(slakh_root_dir, output_csv_path)

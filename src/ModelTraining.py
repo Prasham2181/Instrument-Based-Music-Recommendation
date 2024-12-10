@@ -194,7 +194,7 @@ def train(dataloader, model, loss_fn, optimizer):
             print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")
 
 # testing
-def test(dataloader, model, loss_fn, optimizer):
+def test(dataloader, model, loss_fn):
     size = len(dataloader.dataset)
     num_batches = len(dataloader)
 
@@ -209,9 +209,8 @@ def test(dataloader, model, loss_fn, optimizer):
 
         test_loss /= num_batches
         correct_preds /= size
-    print(
-        f"Test Error: \n Accuracy: {correct_preds*100:>7f}%, Avg loss: {test_loss:>8f}"
-    )
+
+    print(f"Error: \n Accuracy: {correct_preds*100:>7f}%, Avg MSE loss: {test_loss:>8f}")
 
 def predict_source_masks(model, spectrogram_image_path):
     
@@ -309,10 +308,13 @@ if __name__ == "__main__":
     
     # cpu or cuda device
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+
+    # Type of data
+    data = 'test'
     
     # Paths and dimensions
-    input_dir = os.path.join('Final_Dataset', 'Input')
-    output_dir = os.path.join('Final_Dataset','Output')
+    input_dir = os.path.join('Final_Dataset', data, 'Input')
+    output_dir = os.path.join('Final_Dataset', data, 'Output')
     
     # Define transformations
     transform = transforms.Compose([
@@ -325,37 +327,36 @@ if __name__ == "__main__":
     # DataLoader for batching and shuffling
     dataloader = DataLoader(dataset, batch_size=10, shuffle=True)
     
-    # Checking input and output shapes
-    for inputs, outputs in dataloader:
-        print(f"Input shape: {inputs.shape}, Output shape: {outputs.shape}")
-        break
-    
     # Initializing the model
     in_channels, out_channels = 1, 5
     model = UNET(in_channels, out_channels).to(device)
-    print(f"Model Architecture: \n{model}")
     
     # Loss and optimizer for training the model
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01)
     loss_fn = EnergyBasedLossFunction()
     
-    # Training 
-    epochs = 5
-    for epoch in range(epochs):
-        print(f"Epoch {epoch + 1}\n-------------------------")
-        train(dataloader, model, loss_fn, optimizer)
+    # Epochs
+    epochs = 15
+
+    # Train
+    if data == 'train':
+        for epoch in range(epochs):
+            print(f"Epoch {epoch + 1}\n-------------------------")
+            train(dataloader, model, loss_fn, optimizer)
+
+        # Saving the trained model
+        if not os.path.exists('Models'):
+            os.makedirs('Models')
+        torch.save(model.state_dict(), os.path.join('Models', 'model_weights.pth'))
+
+    # Validation
+    elif data == 'validation':
+        test(dataloader, model, loss_fn)
+
+    # Test
+    elif data == 'test':
+        test(dataloader, model, loss_fn)
     
-    # Saving the trained model
-    if not os.path.exists('Models'):
-        os.makedirs('Models')
-    
-    torch.save(model.state_dict(), os.path.join('Models', 'model_weights.pth'))
-    
-    # # Source separation
-    # softmasks = predict_source_masks(model, os.path.join('Final_Dataset', 'Input', 'Track00001_mix.png'))
-    # y, sr = librosa.load(os.path.join('RawData', 'Track00005', 'mix.wav'), mono=True, sr=10880)
-    # y = make_lengths_same(y, sr)
-    # separated_sources = separate_sources(torch.tensor(y, dtype=torch.float32), softmasks)
     
     
     

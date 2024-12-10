@@ -47,7 +47,7 @@ def make_lengths_same(audio_file, sample_rate=10880, target_duration=180):
         print(f"Error encounterd in the function 'make_lengths_same'.")
         raise e
       
-def merge_tracks(track_df, instrument):
+def merge_tracks(track_df, instrument, data='train'):
 
   try:
     # Filtering the track_df dataframe to get only the records with required instrument
@@ -64,7 +64,7 @@ def merge_tracks(track_df, instrument):
 
     # Iterating through each row of the filtered dataframe
     for index in range(instr_df.shape[0]):
-      audio_path = os.path.join('RawData', instr_df.iloc[index, 0], 'stems', instr_df.iloc[index, 2])
+      audio_path = os.path.join('Slakh2100', data, instr_df.iloc[index, 0], 'stems', instr_df.iloc[index, 2])
 
       # Checking if the audio file exists
       if os.path.exists(audio_path):
@@ -88,29 +88,29 @@ def merge_tracks(track_df, instrument):
     print("Error encounterd in the function 'merge_tracks'.")
     raise e
   
-def merge_main_four_tracks(unique_track):
+def merge_main_four_tracks(unique_track, data='train'):
 
   try:
     # Filtering the data for the particular track
     track_df = df[df['Folder Name'] == unique_track]
     
     # Merging the piano records if required
-    y_piano, sr_piano = merge_tracks(track_df, 'Piano')
+    y_piano, sr_piano = merge_tracks(track_df, 'Piano', data=data)
     if y_piano is not None and sr_piano is not None :
       y_piano = y_piano.reshape(-1, 1) # reshaping because soundfile expects the shape of (audio_samples, num_channels)
     
     # Merging guitar records if required
-    y_guitar, sr_guitar = merge_tracks(track_df, 'Guitar')
+    y_guitar, sr_guitar = merge_tracks(track_df, 'Guitar', data=data)
     if y_guitar is not None and sr_guitar is not None:
       y_guitar = y_guitar.reshape(-1, 1) # reshaping because soundfile expects the shape of (audio_samples, num_channels)
 
     # Merging the bass records if required
-    y_bass, sr_bass = merge_tracks(track_df, 'Bass')
+    y_bass, sr_bass = merge_tracks(track_df, 'Bass', data=data)
     if y_bass is not None and sr_bass is not None:
       y_bass = y_bass.reshape(-1, 1) # reshaping because soundfile expects the shape of (audio_samples, num_channels)
 
     # Merging the drum records if required
-    y_drums, sr_drums = merge_tracks(track_df, 'Drums')
+    y_drums, sr_drums = merge_tracks(track_df, 'Drums', data=data)
     if y_drums is not None and sr_drums is not None:
       y_drums = y_drums.reshape(-1, 1) # reshaping because soundfile expects the shape of (audio_samples, num_channels)
 
@@ -120,55 +120,55 @@ def merge_main_four_tracks(unique_track):
     print(f"Error encountered in the function 'merge_main_four_tracks': {e}")
     raise e
 
-def create_audio_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar', 'Others']):
+def create_audio_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar', 'Others'], data='train'):
 
   try:
     # If the folder to store the data is not present then it is created
     if not os.path.exists('Audio_Dataset'):
-      os.makedirs('Audio_Dataset')
+      os.makedirs('Audio_Dataset', exist_ok=True)
     
     # Creating input and output folder
-    if not os.path.exists(os.path.join('Audio_Dataset', 'Input')):
-      os.makedirs(os.path.join('Audio_Dataset', 'Input'))
+    if not os.path.exists(os.path.join('Audio_Dataset', data ,'Input')):
+      os.makedirs(os.path.join('Audio_Dataset', data, 'Input'), exist_ok=True)
 
-    if not os.path.exists(os.path.join('Audio_Dataset', 'Output')):
-      os.makedirs(os.path.join('Audio_Dataset', 'Output'))
+    if not os.path.exists(os.path.join('Audio_Dataset', data, 'Output')):
+      os.makedirs(os.path.join('Audio_Dataset', data, 'Output'), exist_ok=True)
 
     for unique_track in unique_tracks: # For every unique trackk
       track_df = df[df['Folder Name'] == unique_track] # Filtering the data base on the unique track
       if all(True for instr in four_instr if instr in track_df['Instrument Class']): # If all the four main instruments and at least one other instrument are present in the mixed audio
 
         # Merging the multiple audio files of same instrument if required
-        y_piano, y_guitar, y_bass, y_drums, sr_piano, sr_guitar, sr_bass, sr_drums = merge_main_four_tracks(unique_track)
+        y_piano, y_guitar, y_bass, y_drums, sr_piano, sr_guitar, sr_bass, sr_drums = merge_main_four_tracks(unique_track, data=data)
 
         # If there is not other instrument present other than the main four then dummy others audio is created.
         if 'Others' not in track_df.iloc[:, 3].unique():
           y_others = np.zeros(int(180 * 10880)).reshape(-1, 1)
           sr_others = 10880
         else:
-          y_others, sr_others = merge_tracks(track_df, 'Others')
+          y_others, sr_others = merge_tracks(track_df, 'Others', data=data)
             
         # Saving all four main audio files
         if y_piano is not None and y_drums is not None and y_bass is not None and y_guitar is not None and y_others is not None:
            # Creating a folder for each unique track if it is not already present
-          if not os.path.exists(os.path.join('Audio_Dataset', 'Output', str(unique_track))):
-            os.makedirs(os.path.join('Audio_Dataset', 'Output' ,str(unique_track)))
+          if not os.path.exists(os.path.join('Audio_Dataset', data, 'Output', str(unique_track))):
+            os.makedirs(os.path.join('Audio_Dataset', data, 'Output' ,str(unique_track)), exist_ok=True)
             
-          sf.write(os.path.join('Audio_Dataset', 'Output',  str(unique_track), 'Piano.wav'), y_piano, sr_piano)
-          sf.write(os.path.join('Audio_Dataset', 'Output' , str(unique_track), 'Drum.wav'), y_drums, sr_drums)
-          sf.write(os.path.join('Audio_Dataset', 'Output' , str(unique_track), 'Bass.wav'), y_bass, sr_bass)
-          sf.write(os.path.join('Audio_Dataset', 'Output' , str(unique_track), 'Guitar.wav'), y_guitar, sr_guitar)
+          sf.write(os.path.join('Audio_Dataset', data, 'Output',  str(unique_track), 'Piano.wav'), y_piano, sr_piano)
+          sf.write(os.path.join('Audio_Dataset', data, 'Output' , str(unique_track), 'Drum.wav'), y_drums, sr_drums)
+          sf.write(os.path.join('Audio_Dataset', data, 'Output' , str(unique_track), 'Bass.wav'), y_bass, sr_bass)
+          sf.write(os.path.join('Audio_Dataset', data, 'Output' , str(unique_track), 'Guitar.wav'), y_guitar, sr_guitar)
 
           # Saving others audio
           if y_others is not None and sr_others is not None:
-            sf.write(os.path.join('Audio_Dataset', 'Output' , str(unique_track), 'Others.wav'), y_others, sr_others)
+            sf.write(os.path.join('Audio_Dataset', data, 'Output' , str(unique_track), 'Others.wav'), y_others, sr_others)
 
           # Saving the mixed audio
-          y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.flac'), mono=True, sr=10880)
+          y_mix, sr_mix = librosa.load(os.path.join('Slakh2100', data, str(unique_track), 'mix.flac'), mono=True, sr=10880)
           y_mix = make_lengths_same(y_mix, sr_mix)
           
           if y_mix is not None and sr_mix is not None:
-            sf.write(os.path.join('Audio_Dataset', 'Input', f'{unique_track}_mix.wav'), y_mix, sr_mix)
+            sf.write(os.path.join('Audio_Dataset', data, 'Input', f'{unique_track}_mix.wav'), y_mix, sr_mix)
 
   except Exception as e:
     print("Error encountered in the 'create_dataset' function.")
@@ -215,39 +215,39 @@ def create_log_magnitude_spectrogram(waveform, window_length=1022, hop_length=51
     magnitude_db_normalized = resample_spectrogram_db(magnitude_db_normalized, target_shape=(513, 513))
     return magnitude_db_normalized
 
-def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar', 'Others']):
+def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar', 'Others'], data='train'):
     try:
         # If the folder to store the data is not present then it is created
         if not os.path.exists('Spectrogram_Dataset'):
-            os.makedirs('Spectrogram_Dataset')
+            os.makedirs('Spectrogram_Dataset', exist_ok=True)
 
         # Creating input and output folder
-        if not os.path.exists(os.path.join('Spectrogram_Dataset', 'Input')):
-            os.makedirs(os.path.join('Spectrogram_Dataset', 'Input'))
+        if not os.path.exists(os.path.join('Spectrogram_Dataset', data, 'Input')):
+            os.makedirs(os.path.join('Spectrogram_Dataset', data, 'Input'), exist_ok=True)
 
-        if not os.path.exists(os.path.join('Spectrogram_Dataset', 'Output')):
-            os.makedirs(os.path.join('Spectrogram_Dataset', 'Output'))
+        if not os.path.exists(os.path.join('Spectrogram_Dataset', data, 'Output')):
+            os.makedirs(os.path.join('Spectrogram_Dataset', data, 'Output'), exist_ok=True)
 
         for unique_track in unique_tracks: # For every unique trackk
             track_df = df[df['Folder Name'] == unique_track] # Filtering the data base on the unique track
             if all(True for instr in four_instr if instr in track_df['Instrument Class']):  # If all the four main instruments are present in the mixed audio
 
                 # Merging the multiple audio files of same instrument if required
-                y_piano, y_guitar, y_bass, y_drums, sr_piano, sr_guitar, sr_bass, sr_drums = merge_main_four_tracks(unique_track)
+                y_piano, y_guitar, y_bass, y_drums, sr_piano, sr_guitar, sr_bass, sr_drums = merge_main_four_tracks(unique_track, data=data)
 
                 # If there is not other instrument present other than the main four then dummy others audio is created.
                 if 'Others' not in track_df.iloc[:, 3].unique():
                     y_others = np.zeros(int(180 * 10880)).reshape(-1, 1)
                     sr_others = 10880
                 else:
-                    y_others, sr_others = merge_tracks(track_df, 'Others')
+                    y_others, sr_others = merge_tracks(track_df, 'Others', data=data)
                 
                 if y_piano is not None and y_drums is not None and y_bass is not None and y_guitar is not None and y_others is not None:
                     # Creating a folder for each unique track if it is not already present
-                    if not os.path.exists(os.path.join('Spectrogram_Dataset', 'Output', str(unique_track))):
-                        os.makedirs(os.path.join('Spectrogram_Dataset', 'Output' ,str(unique_track)))
+                    if not os.path.exists(os.path.join('Spectrogram_Dataset', data, 'Output', str(unique_track))):
+                        os.makedirs(os.path.join('Spectrogram_Dataset', data, 'Output' ,str(unique_track)), exist_ok=True)
 
-                    y_mix, sr_mix = librosa.load(os.path.join('RawData', str(unique_track), 'mix.flac'), mono=True, sr=10880)
+                    y_mix, sr_mix = librosa.load(os.path.join('Slakh2100', data, str(unique_track), 'mix.flac'), mono=True, sr=10880)
 
                     # Defining the parameters for the mel spectrogram
                     window_length = 1022
@@ -267,7 +267,7 @@ def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bas
                     cbar = plt.colorbar(cax)
                     cbar.remove()
                     plt.tight_layout()
-                    plt.savefig(os.path.join('Spectrogram_Dataset', 'Input', f"{unique_track}_mix.png"))
+                    plt.savefig(os.path.join('Spectrogram_Dataset', data, 'Input', f"{unique_track}_mix.png"))
                     plt.close(fig)
 
                     outputs = [y_piano, y_guitar, y_bass, y_drums, y_others]
@@ -286,7 +286,7 @@ def create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bas
                             cbar = plt.colorbar(cax)
                             cbar.remove()
                             plt.tight_layout()
-                            plt.savefig(os.path.join('Spectrogram_Dataset', 'Output', str(unique_track), f"{instr_names[index]}.png"))
+                            plt.savefig(os.path.join('Spectrogram_Dataset', data, 'Output', str(unique_track), f"{instr_names[index]}.png"))
                             plt.close(fig)
 
     except Exception as e:
@@ -299,13 +299,13 @@ def load_spectrogram_image(image_path):
     img_array = np.array(img)
     return img_array
   
-def create_mask_dataset():
+def create_mask_dataset(data='train'):
     
-    output_dirs = os.listdir(os.path.join('Spectrogram_Dataset', 'Output'))
+    output_dirs = os.listdir(os.path.join('Spectrogram_Dataset', data, 'Output'))
 
     for output_dir in output_dirs:
 
-        output_dir_path = os.path.join('Spectrogram_Dataset', 'Output', output_dir)
+        output_dir_path = os.path.join('Spectrogram_Dataset', data, 'Output', output_dir)
         source_images = os.listdir(output_dir_path)
 
         source_img_array = [load_spectrogram_image(os.path.join(output_dir_path, source_image)) for source_image in source_images]
@@ -320,26 +320,29 @@ def create_mask_dataset():
         softmasks = source_img_array / magnitude_sum
 
         if not os.path.exists('Final_Dataset'):
-            os.makedirs('Final_Dataset')
+            os.makedirs('Final_Dataset', exist_ok=True)
 
-        if not os.path.exists(os.path.join('Final_Dataset', 'Output')):
-            os.makedirs(os.path.join('Final_Dataset', 'Output'))
+        if not os.path.exists(os.path.join('Final_Dataset', data, 'Output')):
+            os.makedirs(os.path.join('Final_Dataset', data, 'Output'))
 
         for index, softmask in enumerate(softmasks):
 
-            if not os.path.exists(os.path.join('Final_Dataset', 'Output', output_dir)):
-                os.makedirs(os.path.join('Final_Dataset', 'Output', output_dir))
+            if not os.path.exists(os.path.join('Final_Dataset', data, 'Output', output_dir)):
+                os.makedirs(os.path.join('Final_Dataset', data, 'Output', output_dir), exist_ok=True)
 
             fig = plt.figure(figsize=(7,7))
             plt.axis('off')
             plt.imshow(softmask, cmap='gray', origin='lower', aspect='auto')
-            plt.savefig(os.path.join('Final_Dataset', 'Output', output_dir, source_images[index]), bbox_inches='tight', transparent=True)
+            plt.savefig(os.path.join('Final_Dataset', data, 'Output', output_dir, source_images[index]), bbox_inches='tight', transparent=True)
             plt.close(fig)
   
 if __name__ == "__main__":
+
+  # Type of data
+  data = 'test'
     
   # Reading the file
-  df = pd.read_csv('slakh2100_metadata.csv')
+  df = pd.read_csv(f'slakh2100_metadata_{data}.csv')
   
   # Four main instruments
   four_instr = ['Piano', 'Drums', 'Bass', 'Guitar']
@@ -349,21 +352,21 @@ if __name__ == "__main__":
   
   # Replacing all the instruments except in ['Piano', 'Drums', 'Bass', 'Guitar'] with 'Others' tag in csv file
   df = replace_other_track_labels(df, four_instr)
-  
+
   # create audio dataset
-  create_audio_dataset(unique_tracks)
+  create_audio_dataset(unique_tracks, data=data)
   
   # create spectrogram dataset
-  create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar'])
+  create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar'], data=data)
   
   # Creating final dataset i.e., input --> spectrogram, output --> softmasks
   
   # Copying input sepctrograms to the final dataset folder
-  source_folder = os.path.join('Spectrogram_Dataset', 'Input')
-  destination_folder = os.path.join('Final_Dataset', 'Input')
-  shutil.copytree(source_folder, destination_folder)
+  source_folder = os.path.join('Spectrogram_Dataset', data, 'Input')
+  destination_folder = os.path.join('Final_Dataset', data, 'Input')
+  shutil.copytree(source_folder, destination_folder, dirs_exist_ok=True)
   
-  create_mask_dataset()
+  create_mask_dataset(data=data)
   
   
   

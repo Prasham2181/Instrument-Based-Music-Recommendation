@@ -70,7 +70,7 @@ def calculate_instrument_durations(song_file_path=os.path.join('user_ip_wavfile_
         
     return durations  # Guitar, Drums, Piano, Bass, Others
 
-def calculate_db_durations(test_folder=os.path.join('Database', 'Output'), instruments= ['Bass', 'Drums', 'Guitar', 'Piano', 'Others'], output_file_path='db_duration_matrix.npy'):
+def calculate_db_durations(test_folder=os.path.join('Audio_Dataset', 'test', 'Output'), instruments= ['Bass', 'Drums', 'Guitar', 'Piano', 'Others'], output_file_path='db_duration_matrix.npy'):
     # Initialize the matrix
     duration_matrix = []
     
@@ -109,7 +109,7 @@ def generate_recommendations():
     cosine_similarity = calculate_similarity_score(instrument_durations, db_durations)
     
     max_index = np.argmax(cosine_similarity)
-    song_options = sorted(os.listdir(os.path.join('Database', 'Input')))
+    song_options = sorted(os.listdir(os.path.join('Audio_Dataset', 'test', 'Input')))
     
     recommendations_file_name = song_options[max_index]
     
@@ -126,69 +126,115 @@ def calculate_similarity_score(instrument_durations, db_durations):
     
     cosine_similarity = np.dot(db_durations, instrument_durations) / (instrument_durations_magnitude * db_durations_magnitude)
     print(f"********cosine similarity: {cosine_similarity}")
+
     return cosine_similarity
+
+def webapp():
+    # # Streamlit UI Part
+
+    st.set_page_config(
+            page_title = "Music Recommendation App",
+            page_icon="🎹",
+            initial_sidebar_state="expanded",
+            # layout='wide'
+        )
     
-    
-# # Streamlit UI Part
-    
-st.title("CS 541 Deep Learning Final Project")
+    st.markdown("""
+    <style>
+        /* Ensure the full width usage for the overall container */
+        .reportview-container {
+            max-width: 100% !important;
+        }
 
-st.header("Instrument-Based Music Recommendation 🎹")
+        /* Center the content container and set it to 60% width */
+        .block-container {
+            max-width: 60%;    /* Set the content width to 60% of the screen */
+            margin: 0 auto;    /* Center the container horizontally */
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+        }
 
-user_name = st.text_input("Enter your name:", "")
-if user_name:
-    st.subheader(f"Hi {user_name}\n")
-    st.header(f"Welcome to the Song Recommendation App")
+        /* Apply full width to main content section */
+        .main {
+            max-width: 100% !important;
+        }
 
-uploaded_file = st.file_uploader("Upload a song file (.mp3 or .wav):", type=["mp3", "wav"])
+        /* Center all headers (h1, h2, etc.) */
+        h1, h2, h3, h4, h5, h6 {
+            text-align: center;
+        }
 
-if uploaded_file:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as temp_file:
-        temp_file.write(uploaded_file.getbuffer())
-        temp_file_path = temp_file.name
+        /* Center all text content */
+        .stMarkdown, .stText {
+            text-align: center;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.title("Instrument-Based Music Recommendation 🎹")
+
+    st.caption('A project by Shivam Shinde, Prasham Soni, and Manav Mepani')
+
+    st.image('Header_Image.jpg')
+
+    st.divider()
+
+    st.subheader('Upload a song file')
+    uploaded_file = st.file_uploader("", type=["wav"])
+
+    if uploaded_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as temp_file:
+            temp_file.write(uploaded_file.getbuffer())
+            temp_file_path = temp_file.name
+            
+        if not os.path.exists('user_ip_wavfile_folder'):
+            os.makedirs('user_ip_wavfile_folder')
+            
+        file_path = os.path.join('user_ip_wavfile_folder', 'wavfile.wav')
         
-    if not os.path.exists('user_ip_wavfile_folder'):
-        os.makedirs('user_ip_wavfile_folder')
+        with open(file_path, 'wb') as f:
+            f.write(uploaded_file.getbuffer())
         
-    file_path = os.path.join('user_ip_wavfile_folder', 'wavfile.wav')
+        st.audio(temp_file_path)
+
+        st.subheader("Tell us your instrument preferences:")
+        guitar_pref = st.radio("Do you prefer Guitar:guitar: in recommendations?", ["No", "Yes"])
+        drums_pref = st.radio("Do you prefer Drums:drum_with_drumsticks: in recommendations?", ["No", "Yes"])
+        piano_pref = st.radio("Do you prefer Piano:musical_keyboard: in recommendations?", ["No", "Yes"])
+        bass_pref = st.radio("Do you prefer Bass:notes: in recommendations?", ["No", "Yes"])
+        others_pref = st.radio("Do you prefer other:musical_score: instruments in recommendations?", ["No", "Yes"])
+
+        preferences = [
+            1 if guitar_pref == "Yes" else 0,
+            1 if drums_pref == "Yes" else 0,
+            1 if piano_pref == "Yes" else 0,
+            1 if bass_pref == "Yes" else 0,
+            1 if others_pref == "Yes" else 0,
+        ]    
+        
+
+        if st.button("Submit"):
+            with st.spinner():
+                recommendations = generate_recommendations()
+                print(f"******************Recommendations: {recommendations}")
+                if recommendations:
+                    st.success("Preferences submitted successfully! Here is your recommendation:")
+                    # for rec in recommendations:
+                    #     st.write(f"- {rec}")
+                    st.audio(os.path.join('Database', 'Input', f"{recommendations}"))
+                else:
+                    st.warning("No recommendations available based on your preferences. Try adjusting your inputs.")
+
+        try:
+            os.remove(temp_file_path)
+        except Exception as e:
+            st.error(f"Error cleaning up the file: {e}")
+    else:
+        st.info("Please upload a song to proceed.")
     
-    with open(file_path, 'wb') as f:
-        f.write(uploaded_file.getbuffer())
     
-    st.audio(temp_file_path)
+if __name__ == "__main__":
 
-    st.subheader("Tell us your instrument preferences:")
-    guitar_pref = st.radio("Do you prefer Guitar:guitar: in recommendations?", ["No", "Yes"])
-    drums_pref = st.radio("Do you prefer Drums:drum_with_drumsticks: in recommendations?", ["No", "Yes"])
-    piano_pref = st.radio("Do you prefer Piano:musical_keyboard: in recommendations?", ["No", "Yes"])
-    bass_pref = st.radio("Do you prefer Bass:notes: in recommendations?", ["No", "Yes"])
-    others_pref = st.radio("Do you prefer other:musical_score: instruments in recommendations?", ["No", "Yes"])
-
-    preferences = [
-        1 if guitar_pref == "Yes" else 0,
-        1 if drums_pref == "Yes" else 0,
-        1 if piano_pref == "Yes" else 0,
-        1 if bass_pref == "Yes" else 0,
-        1 if others_pref == "Yes" else 0,
-    ]    
-    
-
-    if st.button("Submit"):
-        recommendations = generate_recommendations()
-        print(f"******************Recommendations: {recommendations}")
-        if recommendations:
-            st.success("Preferences submitted successfully! Here is your recommendation:")
-            # for rec in recommendations:
-            #     st.write(f"- {rec}")
-            st.audio(os.path.join('Database', 'Input', f"{recommendations}"))
-        else:
-            st.warning("No recommendations available based on your preferences. Try adjusting your inputs.")
-
-    try:
-        os.remove(temp_file_path)
-    except Exception as e:
-        st.error(f"Error cleaning up the file: {e}")
-else:
-    st.info("Please upload a song to proceed.")
+    webapp()
 
 
