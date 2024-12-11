@@ -1,9 +1,11 @@
 import os
+import time
 import librosa
 import numpy as np
 import logging
 import torch
 import matplotlib.pyplot as plt
+from sklearn.metrics.pairwise import cosine_similarity
 from prediction_funcs import Predictions
 from step2_DatasetLoading import DataLoadingProcessing
 from step4_ModelTraining import UNET
@@ -32,9 +34,10 @@ class SimScore:
 
     def calculate_instrument_durations(self, song_file_path=os.path.join('user_ip_wavfile_folder', 'wavfile.wav')):
         
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
         # Loading the trained model
         model = UNET(1, 5)
-        state_dict = torch.load(os.path.join('Models', 'model_weights.pth'))
+        state_dict = torch.load(os.path.join('Models', 'model_weights.pth'), map_location=torch.device(device), weights_only=True)
         model.load_state_dict(state_dict)
         
         # Finding the wavform and sample rate
@@ -102,7 +105,7 @@ class SimScore:
 
         # return duration_matrix
 
-    def generate_recommendations(self):
+    def generate_recommendations(self, user_preference):
         
         instrument_durations = self.calculate_instrument_durations()
 
@@ -110,7 +113,7 @@ class SimScore:
         db_durations = np.load('db_duration_matrix.npy')
 
         # print(f"**********db duration: {db_durations}")
-        cosine_similarity = self.calculate_similarity_score(instrument_durations, db_durations)
+        cosine_similarity = self.calculate_similarity_score(instrument_durations, db_durations, user_preference)
         
         max_index = np.argmax(cosine_similarity)
         song_options = sorted(os.listdir(os.path.join('Audio_Dataset', 'test', 'Input')))
@@ -119,19 +122,28 @@ class SimScore:
         
         return recommendations_file_name
 
-    def calculate_similarity_score(self, instrument_durations, db_durations):
+    def calculate_similarity_score(self, instrument_durations, db_durations, user_preference):
         
         # Using similarity score formula
-        instrument_durations = np.array(instrument_durations).reshape(-1, 1)
+        instrument_durations = np.array([instrument_durations[index] for index in user_preference]).reshape(-1, 1)
+        print(f"instrument durations: {instrument_durations}")
         
+        db_durations = db_durations[:, user_preference]
+        print(f"db durations shape: {db_durations}")
         # magnitudes of two array
-        instrument_durations_magnitude = np.linalg.norm(instrument_durations)
-        db_durations_magnitude = np.linalg.norm(db_durations, axis=0)
+        # instrument_durations_magnitude = np.linalg.norm(instrument_durations)
+        # db_durations_magnitude = np.linalg.norm(db_durations, axis=0)
+        # print(f"Instrument duration magnitude: {instrument_durations_magnitude}")
+        # print(f"DB duration magnitude: {db_durations_magnitude}")
         
-        cosine_similarity = np.dot(db_durations, instrument_durations) / (instrument_durations_magnitude * db_durations_magnitude)
-        # print(f"********cosine similarity: {cosine_similarity}")
-
-        return cosine_similarity
+        # cosine_similarity = np.dot(db_durations, instrument_durations) / (instrument_durations_magnitude * db_durations_magnitude)
+        instrument_flattened = instrument_durations.flatten()
+        
+        similarity = [cosine_similarity([instrument_flattened], [row])[0, 0] for row in db_durations]
+        
+        print(f"********cosine similarity: {np.array(similarity).shape}")
+        
+        return similarity
 
 
 if __name__ == "__main__":

@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import tempfile
 import logging
+import time
 from step0_utility_functions import Utility
 from step3_calculate_similarity_scores import SimScore
 
@@ -80,37 +81,40 @@ class UI:
             st.audio(temp_file_path)
 
             st.subheader("Tell us your instrument preferences:")
-            guitar_pref = st.radio("Do you prefer Guitar:guitar: in recommendations?", ["No", "Yes"])
-            drums_pref = st.radio("Do you prefer Drums:drum_with_drumsticks: in recommendations?", ["No", "Yes"])
-            piano_pref = st.radio("Do you prefer Piano:musical_keyboard: in recommendations?", ["No", "Yes"])
-            bass_pref = st.radio("Do you prefer Bass:notes: in recommendations?", ["No", "Yes"])
-            others_pref = st.radio("Do you prefer other:musical_score: instruments in recommendations?", ["No", "Yes"])
+            guitar_pref = st.radio("Do you prefer Guitar:guitar: in recommendations?", ["No", "Yes"], index=1)
+            drums_pref = st.radio("Do you prefer Drums:drum_with_drumsticks: in recommendations?", ["No", "Yes"], index=1)
+            piano_pref = st.radio("Do you prefer Piano:musical_keyboard: in recommendations?", ["No", "Yes"], index=1)
+            bass_pref = st.radio("Do you prefer Bass:notes: in recommendations?", ["No", "Yes"], index=1)
+            others_pref = st.radio("Do you prefer other:musical_score: instruments in recommendations?", ["No", "Yes"], index=1)
 
-            preferences = [
-                1 if guitar_pref == "Yes" else 0,
-                1 if drums_pref == "Yes" else 0,
-                1 if piano_pref == "Yes" else 0,
-                1 if bass_pref == "Yes" else 0,
-                1 if others_pref == "Yes" else 0,
-            ]    
-            
+            preferences = [bass_pref, drums_pref, guitar_pref, piano_pref,others_pref]    
+
+            user_preferences = list()
+            for index, preference in enumerate(preferences):
+                if preference == 'Yes':
+                    user_preferences.append(index)
 
             if st.button("Submit"):
                 with st.spinner():
-                    recommendations = SimScore().generate_recommendations()
+                    start_time = time.time()
+                    recommendations = SimScore().generate_recommendations(user_preferences)
                     print(f"******************Recommendations: {recommendations}")
                     if recommendations:
                         st.success("Preferences submitted successfully! Here is your recommendation:")
                         # for rec in recommendations:
                         #     st.write(f"- {rec}")
-                        st.audio(os.path.join('Database', 'Input', f"{recommendations}"))
+                        st.audio(os.path.join('Audio_Dataset', 'test', 'Input', f"{recommendations}"))
                     else:
                         st.warning("No recommendations available based on your preferences. Try adjusting your inputs.")
+                    
+                    end_time = time.time()
+                    print(f"Time taken: {end_time - start_time:.6f} seconds")
 
             try:
                 os.remove(temp_file_path)
             except Exception as e:
                 st.error(f"Error cleaning up the file: {e}")
+
         else:
             st.info("Please upload a song to proceed.")
     

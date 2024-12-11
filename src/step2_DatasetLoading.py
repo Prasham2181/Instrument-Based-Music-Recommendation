@@ -84,7 +84,8 @@ class DataLoadingProcessing:
 
       if y is not None:
         # Normalizing the audio
-        y /= np.max(np.abs(y))
+        epsilon = 1e-10
+        y /= np.max(np.abs(y) + epsilon)
 
       return y, sr
 
@@ -383,16 +384,16 @@ if __name__ == "__main__":
   dlp.create_audio_dataset(unique_tracks, data=data)
   
   # create spectrogram dataset
-  dlp.create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar'], data=data)
+  # dlp.create_spectrogram_dataset(unique_tracks, four_instr=['Piano', 'Drums', 'Bass', 'Guitar'], data=data)
   
   # Creating final dataset i.e., input --> spectrogram, output --> softmasks
   
   # Copying input sepctrograms to the final dataset folder
-  source_folder = os.path.join('Spectrogram_Dataset', data, 'Input')
-  destination_folder = os.path.join('Final_Dataset', data, 'Input')
-  shutil.copytree(source_folder, destination_folder, dirs_exist_ok=True)
+  # source_folder = os.path.join('Spectrogram_Dataset', data, 'Input')
+  # destination_folder = os.path.join('Final_Dataset', data, 'Input')
+  # shutil.copytree(source_folder, destination_folder, dirs_exist_ok=True)
   
-  dlp.create_mask_dataset(data=data)
+  # dlp.create_mask_dataset(data=data)
   
   
   
