@@ -1,3 +1,22 @@
+# Other folders
+RawData
+*.csv
+Final_Dataset
+Audio_Dataset
+Spectrogram_Dataset
+*.pt
+*.zip
+*.wav
+*.pth
+User_ip_spectrogram
+user_ip_wavfile_folder
+Slakh2100
+Outputs
+DataBase
+Logs
+*.log
+*npy
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

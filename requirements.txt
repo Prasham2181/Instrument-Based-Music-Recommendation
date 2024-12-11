@@ -1,0 +1,10 @@
+pyyaml
+librosa
+numpy
+pandas
+soundfile
+torch
+torchaudio
+matplotlib
+shutil
+scipy

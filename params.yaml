@@ -1,0 +1,23 @@
+Data:
+  RawDataFolder: Slakh2100
+  AudioDatasetFolder: Audio_Dataset
+  SpectrogramDatasetFolder: Spectrogram_Dataset
+  Final_Dataset: Final_Dataset
+
+Plots:
+  Plot_Foler: Plots
+
+Logs:
+  Logs_Folder: Logs
+  Data_Restructuring_Processing: data_restructuring_processing.log
+  Model_Training: model_training_logs.log
+  Model_Evaluation: model_evaluation_logs.log
+  Make_Predictions: make_predictions.log
+  Frontend: frontend_actions.log
+
+Model:
+  Model_Folder: Models
+  Model_Name: model_weights.pth
+  Metrics:
+    Metrics_Folder: Metrics
+    Metrics_File: validation_metrics.json
