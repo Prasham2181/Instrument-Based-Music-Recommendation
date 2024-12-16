@@ -276,7 +276,7 @@ if __name__ == "__main__":
     
     # Loss and optimizer for training the model
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01)
-    loss_fn = EnergyBasedLossFunction()
+    loss_fn = EnergyBasedLossFunction() 
     
     # Epochs
     epochs = 1

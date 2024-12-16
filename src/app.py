@@ -54,17 +54,17 @@ class UI:
         </style>
         """, unsafe_allow_html=True)
 
-        st.title("Instrument-Based Music Recommendation 🎹")
+        st.title("DeepMelody:Personalized Music Recommendations Based on Instrumental Signatures 🎹")
 
         st.caption('A project by Shivam Shinde, Prasham Soni, and Manav Mepani')
 
-        st.image('Header_Image.jpg')
+        # st.image('Header_Image.jpg')
 
         st.divider()
-
+        
         st.subheader('Upload a song file')
         uploaded_file = st.file_uploader("", type=["wav"])
-
+        
         if uploaded_file:
             with tempfile.NamedTemporaryFile(delete=False, suffix=f".{uploaded_file.name.split('.')[-1]}") as temp_file:
                 temp_file.write(uploaded_file.getbuffer())
