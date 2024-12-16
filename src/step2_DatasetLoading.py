@@ -370,7 +370,7 @@ if __name__ == "__main__":
   
   # Four main instruments
   four_instr = ['Piano', 'Drums', 'Bass', 'Guitar']
-
+  
   # Unique track folders
   unique_tracks = df['Folder Name'].unique()
 
