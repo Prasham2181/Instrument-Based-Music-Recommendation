@@ -57,8 +57,8 @@ The project uses the Slakh2100 dataset, which can be downloaded from this [Link]
 - clone the repository
 
 ```bash
-git clone https://github.com/shivamshinde123/Instrument-Based-Music-Recommendation.git
-```
+
+(https://github.com/Prasham2181/Instrument-Based-Music-Recommendation.git)```
 
 - Navigate to the Project Directory
 
